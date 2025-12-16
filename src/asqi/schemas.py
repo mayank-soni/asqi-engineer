@@ -66,6 +66,9 @@ class EnvironmentVariable(BaseModel):
         None, description="Explanation of what this variable is used for."
     )
 
+class InputDataset(BaseModel):
+    dataset_id: str
+    required_to_input_column_name_mapping: dict[str, str]
 
 class Manifest(BaseModel):
     """Schema for the manifest.yaml file inside a test container."""
@@ -84,6 +87,7 @@ class Manifest(BaseModel):
     input_schema: List[InputParameter] = Field(
         [], description="Defines the schema for the user-provided 'params' object."
     )
+    input_datasets: List[InputDataset]
     output_metrics: Union[List[str], List[OutputMetric]] = Field(
         [],
         description="Defines expected high-level metrics in the final JSON output. Can be a simple list of strings or detailed metric definitions.",
@@ -94,6 +98,14 @@ class Manifest(BaseModel):
         description="Environment variables required by this test container. Used for validation and documentation.",
     )
 
+class DataGeneratorManifest(BaseModel):
+    name: str
+    version: Optional[str] = None
+    description: Optional[str] = None
+    input_systems: List[SystemInput] = []
+    input_schema: List[InputParameter] = []
+    input_datasets: List[InputDataset] = []
+    environment_variables: List[EnvironmentVariable] = []
 
 # ----------------------------------------------------------------------------
 # Schema for systems.yaml (User-provided)
