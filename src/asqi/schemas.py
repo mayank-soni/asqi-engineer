@@ -124,10 +124,13 @@ class InputDataset(BaseModel):
 
     @model_validator(mode="after")
     def _validate_accepted_types(self) -> "InputDataset":
-        if self.type not in list(AcceptedFileTypes) + ["huggingface"]:
+        allowed = [e.value for e in AcceptedFileTypes] + ["huggingface"]
+        if self.type not in allowed:
             raise ValueError(
-                f"Dataset type must be among accepted types: {', '.join(list(AcceptedFileTypes))}, or 'huggingface'."
+                f"Dataset type must be among: {', '.join(allowed)}"
             )
+        return self
+
 
 
 class OutputReports(BaseModel):
