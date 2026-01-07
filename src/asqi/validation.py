@@ -290,14 +290,16 @@ def validate_dataset_configs(test: TestDefinition, manifest: Manifest) -> List[s
         expected_features = {
             f.name for f in schema_datasets[provided_dataset_name].features
         }
-        unknown_mappings: list[str] = []
-        for mapped_feature in provided_dataset_config.mapping.keys():
-            if mapped_feature not in expected_features:
-                unknown_mappings.append(mapped_feature)
-        if unknown_mappings:
-            errors.append(
-                f"Test '{test.name}': Unknown feature mappings '{', '.join(unknown_mappings)}' in dataset '{provided_dataset_name}'. Valid features: {', '.join(expected_features) if expected_features else 'none'}"
-            )
+
+        # TODO: Apply filetype specific conditions here
+        # unknown_mappings: list[str] = []
+        # for mapped_feature in provided_dataset_config.mapping.keys():
+        #     if mapped_feature not in expected_features:
+        #         unknown_mappings.append(mapped_feature)
+        # if unknown_mappings:
+        #     errors.append(
+        #         f"Test '{test.name}': Unknown feature mappings '{', '.join(unknown_mappings)}' in dataset '{provided_dataset_name}'. Valid features: {', '.join(expected_features) if expected_features else 'none'}"
+        #     )
 
     if unknown_datasets:
         errors.append(
