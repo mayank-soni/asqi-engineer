@@ -12,23 +12,44 @@ input_systems:
     required: false
     description: "LLM system for evaluating the system under test responses"
 
+input_datasets:
+  - name: "rag_accuracy_dataset"
+    required: true
+    type: "huggingface"
+    description: "The dataset used for RAG accuracy testing, which includes generated question-answer pairs and context."
+    features:
+      - name: "question"
+        type: "string"
+        description: "The question to ask the RAG system."
+      - name: "answer"
+        type: "string"
+        description: "The ground truth answer for evaluation."
+      - name: "context"
+        type: "string"
+        description: "Retrieved context documents (can be single string or list)."
+  - name: "rag_if_dataset"
+    type: "huggingface"
+    required: true
+    description: "The dataset used for RAG instruction following testing, which includes questions augmented with instruction following prompts."
+    features:
+      - name: "transformed_question"
+        type: "string"
+        description: "The instruction-augmented question to ask the system."
+      - name: "original_question"
+        type: "string"
+        description: "The original question before instruction augmentation."
+      - name: "instruction_type"
+        type: "string"
+        description: "Type/category of instruction applied."
+      - name: "instruction_type_metadata"
+        type: "dict"
+        description: "Additional metadata about the instruction (JSON string or dict)."
+
 input_schema:
-  - name: "rag_accuracy_dataset_path"
-    type: "string"
-    required: true
-    description: "The path to the general dataset used for RAG accuracy testing, which includes generated question-answer pairs and context."
-  - name: "rag_if_dataset_path"
-    type: "string"
-    required: true
-    description: "The path to the dataset used for RAG instruction following testing, which includes questions augmented with instruction following prompts."
   - name: "max_rows"
     type: "integer"
     required: false
     description: "Maximum number of rows to process from each dataset for faster testing. Defaults to 20."
-  - name: "results_dir"
-    type: "string"
-    required: false
-    description: "Directory name for saving results to mounted volume."
 
 
 output_metrics:

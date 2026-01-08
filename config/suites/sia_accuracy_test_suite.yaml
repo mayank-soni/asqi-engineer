@@ -4,19 +4,31 @@ suite_name: "SIA Accuracy Test Suite"
 test_suite:
   - id: "accuracy_rag"
     name: "accuracy_rag"
-    image: "aip/test-container:accuracy_rag-latest"
+    image: "asqiengineer/test-container:accuracy_rag-latest"
     systems_under_test:
       - custom_rag_chatbot
     systems:
       evaluator_system: azure-gpt-4o-mini
     volumes:
-      input: "/Users/<your_username>/Documents/asqi-engineer/input" # Change to your local input directory
-      output: "/Users/<your_username>/Documents/asqi-engineer/output" # Change to your local output directory
+      input: /workspaces/asqi/input # Change to your local input directory
+      output: /workspaces/asqi/output # Change to your local output directory
     datasets:
-      base_accuracy_dataset:
-        file_path: "base_accuracy_dataset.JSONL"
-      instruction_following_dataset:
-        file_path: "if_questions_dataset.csv" 
+      rag_accuracy_dataset: 
+        loader_params:
+          builder_name: "json"
+          data_files: "accuracy_rag/base_accuracy_dataset.JSONL"
+        mapping:
+          question: "question"
+          answer: "answer"
+          context: "context"
+      rag_if_dataset:
+        loader_params:
+          builder_name: "csv"
+          data_files: "accuracy_rag/if_questions_dataset.csv"
+        mapping:
+          transformed_question: "transformed_question"
+          original_question: "original_question"
+          instruction_type: "instruction_type"
+          instruction_type_metadata: "instruction_type_metadata"
     params:
       max_rows: 2
-      results_dir: "sia_accuracy_results"

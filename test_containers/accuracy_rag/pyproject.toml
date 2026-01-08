@@ -12,5 +12,7 @@ dependencies = [
     "nltk>=3.8.1",
     "immutabledict>=4.0.0",
     "arakawa>=0.2.0",
-    "plotly>=6.5.0"
+    "plotly>=6.5.0",
+    "asqi-engineer @ git+https://github.com/mayank-soni/asqi-engineer.git@PLT-507-add-support-for-datasets",
 ]
+

@@ -18,6 +18,17 @@ model_list:
       model: "bedrock/*"
       api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
       drop_params: true # Some frameworks might send not supported params e.g. frequency_penalty
+  - model_name: "custom_rag_chatbot"
+    litellm_params:
+      model: "custom_rag_chatbot"
+      base_url: "http://host.docker.internal:7777" # Assuming the RAG API is running on the host machine at port 7777
+      api_key: "anything"
+      custom_llm_provider: rag_api_chatbot
 
 litellm_settings:
   callbacks: ["otel"]
+  custom_provider_map:
+    - {
+        "provider": "rag_api_chatbot",
+        "custom_handler": "litellm_handlers.rag_chatbot_llm",
+      }
