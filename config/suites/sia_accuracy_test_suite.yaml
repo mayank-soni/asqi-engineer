@@ -12,8 +12,11 @@ test_suite:
     volumes:
       input: "/Users/<your_username>/Documents/asqi-engineer/input" # Change to your local input directory
       output: "/Users/<your_username>/Documents/asqi-engineer/output" # Change to your local output directory
+    datasets:
+      base_accuracy_dataset:
+        file_path: "base_accuracy_dataset.JSONL"
+      instruction_following_dataset:
+        file_path: "if_questions_dataset.csv" 
     params:
-      rag_accuracy_dataset_path: "/input/accuracy_rag/base_accuracy_dataset.JSONL" # Place the input dataset files here
-      rag_if_dataset_path: "/input/accuracy_rag/if_questions_dataset.csv" # Place the input dataset files here
       max_rows: 2
       results_dir: "sia_accuracy_results"
