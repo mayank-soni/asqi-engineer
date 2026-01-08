@@ -9,12 +9,16 @@ from rich.console import Console
 from asqi.config import ExecutionMode, load_config_file
 from asqi.errors import DuplicateIDError, MissingIDFieldError
 from asqi.schemas import (
+    HF_DATASET_TYPE,
     AuditScoreCardIndicator,
     EnvironmentVariable,
+    FileDatasetConfig,
+    HFDatasetConfig,
     Manifest,
     ScoreCard,
     SuiteConfig,
     SystemsConfig,
+    TestDefinition,
 )
 
 logger = logging.getLogger()
@@ -243,6 +247,63 @@ def validate_test_parameters(test, manifest: Manifest) -> List[str]:
     return errors
 
 
+def validate_dataset_configs(test: TestDefinition, manifest: Manifest) -> List[str]:
+    """
+    Validate test.datasets against the manifest's input_datasets schema.
+
+    - Ensures required datasets in input_datasets are provided.
+    - Ensures no unknown dataset names are provided in test.datasets.
+    - Ensures feature mappings for each of test.datasets do not include unknown features.
+    """
+    errors = []
+    if test.datasets is None:
+        test_datasets = {}
+    else:
+        test_datasets = test.datasets
+
+    # Check for required but missing datasets
+    for schema_dataset in manifest.input_datasets:
+        if schema_dataset.required and schema_dataset.name not in test_datasets:
+            errors.append(
+                f"Test '{test.name}': Missing required dataset '{schema_dataset.name}' (description: {schema_dataset.description or 'none'})"
+            )
+
+        elif schema_dataset.name in test_datasets:
+            if schema_dataset.type == HF_DATASET_TYPE:
+                if not isinstance(test_datasets[schema_dataset.name], HFDatasetConfig):
+                    errors.append(
+                        f"Test '{test.name}':  Dataset '{schema_dataset.name}' of type {HF_DATASET_TYPE} must have config of type HFDatasetConfig."
+                    )
+                else:
+                    # Check for unknown mapped fields.
+                    expected_features = {f.name for f in schema_dataset.features}
+                    unknown_mappings: list[str] = []
+                    for mapped_feature in test_datasets[
+                        schema_dataset.name
+                    ].mapping.keys():
+                        if mapped_feature not in expected_features:
+                            unknown_mappings.append(mapped_feature)
+                    if unknown_mappings:
+                        errors.append(
+                            f"Test '{test.name}': Unknown feature mappings '{', '.join(unknown_mappings)}' in dataset '{schema_dataset.name}'. Valid features: {', '.join(expected_features) if expected_features else 'none'}"
+                        )
+
+            elif not isinstance(test_datasets[schema_dataset.name], FileDatasetConfig):
+                errors.append(
+                    f"Test '{test.name}': Dataset '{schema_dataset.name}' of type {schema_dataset.type} must have config of type FileDatasetConfig."
+                )
+
+    # Check for unknown dataset names
+    schema_datasets = {d.name: d for d in manifest.input_datasets}
+    for provided_dataset_name in test_datasets:
+        if provided_dataset_name not in schema_datasets:
+            errors.append(
+                f"Test '{test.name}': Unknown dataset '{provided_dataset_name}'. Valid datasets: {', '.join(schema_datasets.keys()) if schema_datasets else 'none'}"
+            )
+
+    return errors
+
+
 def validate_system_compatibility(
     test, system_definitions: Dict, manifest: Manifest
 ) -> List[str]:
@@ -275,7 +336,8 @@ def validate_system_compatibility(
         s.type for s in manifest.input_systems if s.name == "system_under_test"
     ]
 
-    target_systems = test.systems_under_test
+    # Allow systems_under_test to be None or empty if not required e.g. datagen containers
+    target_systems = test.systems_under_test or []
 
     for system_name in target_systems:
         if system_name not in system_definitions:
@@ -403,6 +465,10 @@ def validate_manifests_against_tests(
         param_errors = validate_test_parameters(test, manifest)
         errors.extend(param_errors)
 
+        # Validate provided dataset configs
+        dataset_errors = validate_dataset_configs(test, manifest)
+        errors.extend(dataset_errors)
+
         # Validate system compatibility
         system_errors = validate_system_compatibility(
             test, system_definitions, manifest
@@ -461,12 +527,47 @@ def create_test_execution_plan(
         if image not in available_images:
             continue
 
-        # Get the target systems
-        target_systems = test.systems_under_test
+        vols = getattr(test, "volumes", None)
+        datasets = getattr(test, "datasets", None)
+        base_params = getattr(test, "params", None)
 
-        if not target_systems:
-            logger.warning(f"Skipping test '{test.name}' with no target systems")
-            continue
+        if vols or datasets:
+            _params = dict(base_params or {})
+            if vols:
+                _params["__volumes"] = vols  # reserved key
+                _params["volumes"] = (
+                    vols  # Also pass volumes directly for container access
+                )
+            if datasets:
+                _params["datasets"] = {
+                    name: (
+                        config.model_dump()
+                        if hasattr(config, "model_dump")
+                        else config.dict()
+                        if hasattr(config, "dict")
+                        else config
+                    )
+                    for name, config in datasets.items()
+                }
+            test_params = _params
+        else:
+            test_params = base_params or {}
+
+        systems_params = {}
+        # Add additional systems if specified
+        if hasattr(test, "systems") and test.systems:
+            for system_role, referenced_system_name in test.systems.items():
+                referenced_system_def = system_definitions.get(referenced_system_name)
+                if referenced_system_def:
+                    systems_params[system_role] = {
+                        "type": referenced_system_def.type,
+                        "description": referenced_system_def.description,
+                        "provider": referenced_system_def.provider,
+                        **get_system_params_dict(referenced_system_def.params),
+                    }
+
+        # Get the target systems
+        target_systems = test.systems_under_test or []
 
         # Process valid combinations
         for system_name in target_systems:
@@ -474,46 +575,17 @@ def create_test_execution_plan(
             if not system_def or not getattr(system_def, "type", None):
                 continue
 
-            vols = getattr(test, "volumes", None)
-            base_params = getattr(test, "params", None)
-
-            if vols:
-                _params = dict(base_params or {})
-                _params["__volumes"] = vols  # reserved key
-                _params["volumes"] = (
-                    vols  # Also pass volumes directly for container access
-                )
-                test_params = _params
-            else:
-                test_params = base_params or {}
-
             # Build unified systems_params with system_under_test and additional systems
-            systems_params = {
-                "system_under_test": {
-                    k: v
-                    for k, v in {
-                        "type": system_def.type,
-                        "description": system_def.description,
-                        "provider": system_def.provider,
-                        **get_system_params_dict(system_def.params),
-                    }.items()
-                    if v is not None
-                }
+            systems_params["system_under_test"] = {
+                k: v
+                for k, v in {
+                    "type": system_def.type,
+                    "description": system_def.description,
+                    "provider": system_def.provider,
+                    **get_system_params_dict(system_def.params),
+                }.items()
+                if v is not None
             }
-
-            # Add additional systems if specified
-            if hasattr(test, "systems") and test.systems:
-                for system_role, referenced_system_name in test.systems.items():
-                    referenced_system_def = system_definitions.get(
-                        referenced_system_name
-                    )
-                    if referenced_system_def:
-                        systems_params[system_role] = {
-                            "type": referenced_system_def.type,
-                            "description": referenced_system_def.description,
-                            "provider": referenced_system_def.provider,
-                            **get_system_params_dict(referenced_system_def.params),
-                        }
 
             plan.append(
                 {
@@ -521,6 +593,21 @@ def create_test_execution_plan(
                     "test_id": test.id,
                     "image": image,
                     "sut_name": system_name,
+                    "systems_params": systems_params,
+                    "test_params": test_params,
+                    "env_file": test.env_file,
+                    "environment": test.environment,
+                }
+            )
+
+        if not target_systems:
+            # No target systems, just add the test with its params
+            plan.append(
+                {
+                    "test_name": test.name,
+                    "test_id": test.id,
+                    "image": image,
+                    "sut_name": None,
                     "systems_params": systems_params,
                     "test_params": test_params,
                     "env_file": test.env_file,
@@ -714,7 +801,7 @@ def validate_test_execution_inputs(
     if not image or not isinstance(image, str):
         raise ValueError("Invalid image: must be non-empty string")
 
-    if not system_name or not isinstance(system_name, str):
+    if system_name and not isinstance(system_name, str):
         raise ValueError("Invalid system name: must be non-empty string")
 
     if not isinstance(system_params, dict):
@@ -806,13 +893,6 @@ def validate_workflow_configurations(
     # Content validation
     if not suite.test_suite:
         errors.append("Test suite is empty: no tests to validate")
-
-    # Validate that each test has systems_under_test after defaults merging
-    for test in suite.test_suite:
-        if not test.systems_under_test:
-            errors.append(
-                f"Test '{test.name}': systems_under_test is required but not provided in test definition or test_suite_default"
-            )
 
     # Get the system definitions
     system_definitions = systems.systems

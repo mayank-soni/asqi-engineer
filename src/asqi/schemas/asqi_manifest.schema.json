@@ -1,5 +1,39 @@
 {
   "$defs": {
+    "DatasetFeature": {
+      "description": "Defines a feature/column within a dataset.",
+      "properties": {
+        "name": {
+          "description": "The name of the feature.",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "description": "The data type of the feature compatible with , e.g., string, int64, float32, etc.",
+          "title": "Type",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the feature - data type, purpose etc.",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "DatasetFeature",
+      "type": "object"
+    },
     "EnvironmentVariable": {
       "description": "Defines an environment variable required by the test container.",
       "properties": {
@@ -32,6 +66,62 @@
         "name"
       ],
       "title": "EnvironmentVariable",
+      "type": "object"
+    },
+    "InputDataset": {
+      "description": "Defines a dataset input that the container requires.",
+      "properties": {
+        "name": {
+          "description": "The dataset name, e.g., 'evaluation_data', 'test_prompts'.",
+          "title": "Name",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "description": "Whether this dataset is mandatory for execution.",
+          "title": "Required",
+          "type": "boolean"
+        },
+        "type": {
+          "description": "The supported dataset type, e.g., 'huggingface' for HF datasets, 'pdf' for PDF documents, 'txt' for .txt files.",
+          "title": "Type",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description of the dataset's role in the test.",
+          "title": "Description"
+        },
+        "features": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/DatasetFeature"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "List of required features within a HuggingFace dataset (not required for other dataset types). Actual dataset's feature names, if different, can be mapped to required feature names in the test config.",
+          "title": "Features"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "features"
+      ],
+      "title": "InputDataset",
       "type": "object"
     },
     "InputParameter": {
@@ -271,6 +361,15 @@
         "$ref": "#/$defs/InputParameter"
       },
       "title": "Input Schema",
+      "type": "array"
+    },
+    "input_datasets": {
+      "default": [],
+      "description": "Defines the schema for user-provided input datasets.",
+      "items": {
+        "$ref": "#/$defs/InputDataset"
+      },
+      "title": "Input Datasets",
       "type": "array"
     },
     "output_metrics": {
