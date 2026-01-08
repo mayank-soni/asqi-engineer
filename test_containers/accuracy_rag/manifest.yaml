@@ -1,0 +1,75 @@
+name: "accuracy_rag"
+version: "1.0"
+description: "A test container for testing the accuracy for rag systems."
+
+input_systems:
+  - name: "system_under_test"
+    type: "rag_api"
+    required: true
+    description: "The RAG system being tested"
+  - name: "evaluator_system"
+    type: "llm_api"
+    required: false
+    description: "LLM system for evaluating the system under test responses"
+
+input_schema:
+  - name: "rag_accuracy_dataset_path"
+    type: "string"
+    required: true
+    description: "The path to the general dataset used for RAG accuracy testing, which includes generated question-answer pairs and context."
+  - name: "rag_if_dataset_path"
+    type: "string"
+    required: true
+    description: "The path to the dataset used for RAG instruction following testing, which includes questions augmented with instruction following prompts."
+  - name: "max_rows"
+    type: "integer"
+    required: false
+    description: "Maximum number of rows to process from each dataset for faster testing. Defaults to 20."
+  - name: "results_dir"
+    type: "string"
+    required: false
+    description: "Directory name for saving results to mounted volume."
+
+
+output_metrics:
+  - name: "success"
+    type: "boolean"
+    description: "Whether the test execution completed successfully"
+  - name: "results_dir"
+    type: "string"
+    description: "Directory where the results are written."
+  - name: "answer_correctness"
+    type: "float"
+    description: "Average answer correctness score (0.0 to 1.0)"
+  - name: "faithfulness"
+    type: "float"
+    description: "Average faithfulness score - measures how factually consistent the answer is with the context (0.0 to 1.0)"
+  - name: "helpfulness"
+    type: "float"
+    description: "Average helpfulness score - measures how relevant and complete the response is (0.0 to 1.0)"
+  - name: "retrieval_correctness"
+    type: "float"
+    description: "Average retrieval correctness score - measures how well the retrieved context matches the query (0.0 to 1.0)"
+  - name: "hit@k"
+    type: "float"
+    description: "Mean Hit@k score (fraction of queries for which any reference was found in top-k retrieved contexts)."
+  - name: "conditional_task_success"
+    type: "float"
+    description: "Average Conditional Task success score (0.0 to 1.0)"
+  - name: "retrieval_gate_pass_rate"
+    type: "float"
+    description: "Base retrieval-gate pass rate (fraction of base accuracy dataset queries that passed retrieval gate)" 
+  - name: "faithfulness_gate_pass_rate"
+    type: "float"
+    description: "Base faithfulness-gate pass rate (fraction of base accuracy dataset queries that passed faithfulness gate)"
+  - name: "hard_gate_pass_rate"
+    type: "float"
+    description: "Base hard-gate pass rate (fraction of base accuracy dataset queries that passed all hard gates)"
+  - name: "instruction_following"
+    type: "float"   
+    description: "Average instruction following score - measures how well the model follows instructions in the prompt (0.0 to 1.0)"
+
+output_reports:
+  - name: "detailed_report"
+    type: "html"
+    description: "A detailed HTML report of the test execution"

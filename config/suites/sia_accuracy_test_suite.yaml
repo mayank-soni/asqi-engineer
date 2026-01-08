@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../src/asqi/schemas/asqi_suite_config.schema.json
+suite_name: "SIA Accuracy Test Suite"
+
+test_suite:
+  - id: "accuracy_rag"
+    name: "accuracy_rag"
+    image: "aip/test-container:accuracy_rag-latest"
+    systems_under_test:
+      - custom_rag_chatbot
+    systems:
+      evaluator_system: azure-gpt-4o-mini
+    volumes:
+      input: "/Users/<your_username>/Documents/asqi-engineer/input" # Change to your local input directory
+      output: "/Users/<your_username>/Documents/asqi-engineer/output" # Change to your local output directory
+    params:
+      rag_accuracy_dataset_path: "/input/accuracy_rag/base_accuracy_dataset.JSONL" # Place the input dataset files here
+      rag_if_dataset_path: "/input/accuracy_rag/if_questions_dataset.csv" # Place the input dataset files here
+      max_rows: 2
+      results_dir: "sia_accuracy_results"
