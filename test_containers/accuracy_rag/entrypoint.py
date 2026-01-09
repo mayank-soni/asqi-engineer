@@ -23,11 +23,16 @@ from ragas.llms import llm_factory
 from relaxed_retrieval_correctness import RelaxedRetrievalCorrectness
 from retrieval_correctness import RetrievalCorrectness
 
+from asqi.datasets import Dataset, load_hf_dataset
+
 os.environ["CONFIDENT_METRIC_LOGGING_VERBOSE"] = "0"
 os.environ["CONFIDENT_METRIC_LOGGING_FLUSH"] = "0"
 logging.getLogger("deepeval").setLevel(logging.ERROR)
 logging.getLogger("ragas").setLevel(logging.ERROR)
 
+RESULTS_DIR = "/output/accuracy_rag_results"
+RAG_ACCURACY_DATASET_NAME = "rag_accuracy_dataset"
+RAG_IF_DATASET_NAME = "rag_if_dataset"
 
 def humanize_instruction_type(name: str) -> str:
     """Convert snake_case instruction type to a human-friendly title.
@@ -110,10 +115,10 @@ class NonIFAccuracyTestRunner:
 
         return CustomGPTModel(model=model, _openai_api_key=api_key, base_url=base_url)
 
-    async def load_questions_from_jsonl(self, jsonl_path: str) -> List[Dict[str, Any]]:
+    async def load_questions(self, dataset: Dataset) -> List[Dict[str, Any]]:
         """Load dataset rows from JSONL file with validation"""
         # Validate input file schema first
-        validation_result = DatasetValidator.validate_rag_accuracy_jsonl(jsonl_path)
+        validation_result = DatasetValidator.validate_rag_accuracy_hf(dataset)
         if not validation_result["valid"]:
             error_msg = f"Invalid RAG accuracy dataset: {', '.join(validation_result['errors'][:5])}"
             if len(validation_result["errors"]) > 5:
@@ -124,28 +129,23 @@ class NonIFAccuracyTestRunner:
 
         rows: List[Dict[str, Any]] = []
         try:
-            with open(jsonl_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        row = json.loads(line)
-                        question = row.get("question", "")
-                        answer = row.get("answer", "")
-                        context = row.get("context", [])
+            for row in dataset:
+                question = row.get("question", "")
+                answer = row.get("answer", "")
+                context = row.get("context", [])
 
-                        if isinstance(context, str):
-                            context = [context]
+                if isinstance(context, str):
+                    context = [context]
 
-                        rows.append(
-                            {
-                                "question": question.strip()
-                                if isinstance(question, str)
-                                else question,
-                                "answer": answer.strip()
-                                if isinstance(answer, str)
-                                else answer,
-                                "context": context,
-                            }
-                        )
+                rows.append(
+                    {
+                        "question": question.strip()
+                        if isinstance(question, str)
+                        else question,
+                        "answer": answer.strip() if isinstance(answer, str) else answer,
+                        "context": context,
+                    }
+                )
             return rows
         except Exception as e:
             raise ValueError(f"Failed to load dataset from JSONL: {e}")
@@ -361,15 +361,15 @@ class NonIFAccuracyTestRunner:
             }
 
     async def run_evaluation(
-        self, dataset_path: str, max_samples: Optional[int] = None
+        self, dataset: Dataset, max_samples: Optional[int] = None
     ) -> Dict[str, Any]:
         """Run full evaluation on accuracy dataset"""
         try:
-            rows = await self.load_questions_from_jsonl(dataset_path)
+            rows = await self.load_questions(dataset)
             if not rows:
                 return {
                     "success": False,
-                    "error": "No rows found in dataset file",
+                    "error": "No rows found in dataset",
                     "conditional_task_sucess": 0.0,
                     "answer_correctness": 0.0,
                     "faithfulness": 0.0,
@@ -916,18 +916,6 @@ def validate_inputs(systems_params: Dict[str, Any], test_params: Dict[str, Any])
             f"System under test must be 'rag_api', got: {sut_params['type']}"
         )
 
-    required_test_fields = ["rag_accuracy_dataset_path", "rag_if_dataset_path"]
-    for field in required_test_fields:
-        if field not in test_params:
-            raise ValueError(f"Missing required test parameter: {field}")
-
-    for dataset_path in [
-        test_params.get("rag_accuracy_dataset_path"),
-        test_params.get("rag_if_dataset_path"),
-    ]:
-        if dataset_path and not os.path.exists(dataset_path):
-            raise ValueError(f"Dataset file not found: {dataset_path}")
-
 
 async def main_async():
     """Async main execution function"""
@@ -935,24 +923,23 @@ async def main_async():
         systems_params, test_params = parse_arguments()
         validate_inputs(systems_params, test_params)
 
-        accuracy_dataset_path = test_params.get("rag_accuracy_dataset_path")
-        if_dataset_path = test_params.get("rag_if_dataset_path")
         max_rows = test_params.get("max_rows")
-        results_dir = test_params.get("results_dir", "accuracy_rag_results")
 
-        if not results_dir.startswith("/output"):
-            results_dir = os.path.join("/output", results_dir)
-        os.makedirs(results_dir, exist_ok=True)
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        accuracy_dataset_config = test_params.get("datasets")
+
+        accuracy_dataset = load_hf_dataset(
+            test_params["datasets"][RAG_ACCURACY_DATASET_NAME]
+        )
+        if_dataset = load_hf_dataset(test_params["datasets"][RAG_IF_DATASET_NAME])
 
         accuracy_runner = NonIFAccuracyTestRunner(systems_params, test_params)
         if_runner = IFTestRunner(systems_params, test_params)
 
         accuracy_result = await accuracy_runner.run_evaluation(
-            accuracy_dataset_path, max_samples=max_rows
+            accuracy_dataset, max_samples=max_rows
         )
-        if_result = await if_runner.run_evaluation(
-            if_dataset_path, max_samples=max_rows
-        )
+        if_result = await if_runner.run_evaluation(if_dataset, max_samples=max_rows)
 
         detailed_results = {
             "base_accuracy_dataset": accuracy_result.get("details", []),

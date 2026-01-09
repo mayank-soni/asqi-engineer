@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Union
 
 from pydantic import BaseModel, Field, ValidationError, validator
 
+from asqi.datasets import Dataset
+
 
 class RAGAccuracyRow(BaseModel):
     """Schema for a single row in the RAG accuracy JSONL dataset."""
@@ -91,6 +93,48 @@ class InstructionFollowingRow(BaseModel):
 
 class DatasetValidator:
     """Validator class for checking entire datasets."""
+
+    @staticmethod
+    def validate_rag_accuracy_hf(
+        dataset: Dataset, max_errors: int = 10
+    ) -> Dict[str, Any]:
+        """Validate a RAG accuracy dataset from a Hugging Face Dataset object.
+
+        Args:
+            dataset: Hugging Face Dataset object
+            max_errors: Maximum number of validation errors to collect
+        Returns:
+            Dict with validation results:
+            {
+                "valid": bool,
+                "total_rows": int,
+                "valid_rows": int,
+                "errors": List[str]
+            }
+        """
+        errors = []
+        valid_rows = 0
+        total_rows = 0
+
+        for row_num, raw_data in enumerate(dataset):
+            total_rows += 1
+
+            try:
+                RAGAccuracyRow(**raw_data)
+                valid_rows += 1
+            except ValidationError as e:
+                if len(errors) < max_errors:
+                    errors.append(f"Row {row_num}: {e}")
+            except Exception as e:
+                if len(errors) < max_errors:
+                    errors.append(f"Row {row_num}: Failed to parse - {e}")
+
+        return {
+            "valid": len(errors) == 0,
+            "total_rows": total_rows,
+            "valid_rows": valid_rows,
+            "errors": errors,
+        }
 
     @staticmethod
     def validate_rag_accuracy_jsonl(
