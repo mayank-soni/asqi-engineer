@@ -442,9 +442,12 @@ class TestDefinitionBase(BaseModel):
     params: Optional[Dict[str, Any]] = Field(
         None, description="Parameters to be passed to the test container's entrypoint."
     )
-    datasets: Optional[Dict[str, DatasetConfig]] = Field(
+    datasets: Optional[Dict[str, str]] = Field(
         None,
-        description="Input dataset names mapped to their loading and mapping configurations.",
+        description=(
+            "Mapping from manifest dataset names to dataset registry names. "
+            "Values must reference entries in the datasets registry file."
+        ),
     )
     volumes: Optional[Dict[str, Any]] = Field(
         None, description="Optional input/output mounts."
