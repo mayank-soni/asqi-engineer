@@ -386,7 +386,7 @@ class DatasetLoaderParams(BaseModel):
         "videofolder",
     ] = Field(
         ...,
-        description="The dataset builder name. Gets passed to datasets.load_dataset() as the path argument.",
+        description="The dataset builder name. Passed to datasets.load_dataset() as the path argument.",
     )
     data_dir: Optional[str] = Field(
         None,
@@ -410,8 +410,8 @@ class HFDatasetConfig(BaseModel):
         description="Keyword arguments for HuggingFace datasets.load_dataset function to load dataset.",
     )
     mapping: dict[str, str] = Field(
-        {},
-        description="Mapping from expected feature names in container manifest to dataset fields.",
+        default_factory=dict,
+        description="Mapping from manifest feature names to dataset fields (for structured datasets).",
     )
 
 
