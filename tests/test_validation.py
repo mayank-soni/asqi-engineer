@@ -1215,6 +1215,9 @@ class TestValidationFunctions:
         plan = create_test_execution_plan(suite, demo_systems, image_availability)
         assert plan == []
 
+    def test_validate_input_volume_for_dataset(self):
+        
+    
     def test_validate_dataset_features(self, mocker):
         mock_load_builder = mocker.patch("asqi.validation.load_hf_dataset_builder")
 
@@ -1248,6 +1251,7 @@ class TestValidationFunctions:
         ]
 
         # Test optional feature not found
+        mock_load_builder.return_value = mock_builder({})
         dataset_schema = InputDataset(
             name="eval_data",
             type="huggingface",
@@ -1256,7 +1260,7 @@ class TestValidationFunctions:
         errors = validate_dataset_features(dataset_definition, dataset_schema)
         assert errors == []
 
-        # - Test optional feature of wrong type
+        # Test optional feature of wrong type
         mock_load_builder.return_value = mock_builder({"optional": Value("string")})
         errors = validate_dataset_features(dataset_definition, dataset_schema)
         assert errors == [
