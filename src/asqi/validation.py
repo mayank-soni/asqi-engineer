@@ -432,13 +432,17 @@ def validate_dataset_features(
                 error += f", mapped to {mapped_feature},"
             error += f" not found in dataset {dataset_schema.name}."
             errors.append(error)
-        elif (not isinstance(provided_feature, Value)) or (
-            provided_feature.dtype not in dtype_mapping[manifest_feature.dtype]
-        ):
-            error = f"Feature {manifest_feature.name} is required to be of type {manifest_feature.dtype}. Provided feature {manifest_feature.name}"
+        elif not isinstance(provided_feature, Value):
+            error = f"Feature {manifest_feature.name} is required to be of type datasets.Value. Provided feature {manifest_feature.name}"
             if mapped_feature:
                 error += f", mapped from {mapped_feature},"
             error += f" is of type {type(provided_feature)}."
+            errors.append(error)
+        elif provided_feature.dtype not in dtype_mapping[manifest_feature.dtype]:
+            error = f"Feature {manifest_feature.name} is required to be of type {manifest_feature.dtype}. Provided feature {manifest_feature.name}"
+            if mapped_feature:
+                error += f", mapped from {mapped_feature},"
+            error += f" is of type {provided_feature.dtype}."
             errors.append(error)
     return errors
 
