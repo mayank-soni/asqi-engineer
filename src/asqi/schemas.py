@@ -166,7 +166,7 @@ class InputDataset(BaseModel):
     description: Optional[str] = Field(None, description="Description of the dataset's role in the test.")
     features: Optional[list[DatasetFeature]] = Field(
         None,
-        description="List of required features within a HuggingFace dataset.",
+        description="List of features within a HuggingFace dataset.",
     )
 
     @model_validator(mode="after")
@@ -204,7 +204,7 @@ class OutputDataset(BaseModel):
     description: Optional[str] = Field(None, description="Description of the output dataset's purpose and contents")
     features: Optional[list[DatasetFeature]] = Field(
         None,
-        description="List of required features within a HuggingFace dataset",
+        description="List of features within a HuggingFace dataset",
     )
 
 
