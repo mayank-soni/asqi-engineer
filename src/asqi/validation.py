@@ -312,7 +312,15 @@ def validate_dataset_configs(
     errors = []
     # Note: input_datasets should contain resolved DatasetDefinition objects at this point,
     # not string references (after resolve_dataset_references() has been called)
-    item_datasets: Dict[str, Any] = item.input_datasets or {}  # type: ignore[assignment]
+    item_datasets: Dict[str, DatasetDefinition] = item.input_datasets or {}  # type: ignore[assignment]
+    if item_datasets and (not item.volumes or item.volumes.get("input")) is None:
+        errors.append(
+            "Missing input volume. Input datasets must be provided via an input volume."
+        )
+        input_volume_path = None
+    # Volumes should already have been validated at this point using validate_volumes
+    else:
+        input_volume_path = Path(item.volumes["input"]).expanduser().resolve()
     item_type = "Test" if isinstance(item, TestDefinition) else "Job"
 
     # Check for required but missing datasets
@@ -598,29 +606,23 @@ def create_test_execution_plan(
         vols = getattr(test, "volumes", None)
         input_datasets = getattr(test, "input_datasets", None)
         base_params = getattr(test, "params", None)
+        _params = dict(base_params or {})
 
         if vols:
-            _params = dict(base_params or {})
             _params["__volumes"] = vols  # reserved key
             _params["volumes"] = vols  # Also pass volumes directly for container access
-            if input_datasets:
-                _params["input_datasets"] = {
-                    name: (
-                        config.model_dump()
-                        if hasattr(config, "model_dump")
-                        else config.dict()
-                        if hasattr(config, "dict")
-                        else config
-                    )
-                    for name, config in input_datasets.items()
-                }
-            test_params = _params
-        else:
-            if input_datasets:
-                raise ValueError(
-                    f"Test config for {test.name} provided with input_datasets but without volumes; datasets must be passed in via mounted volumes."
+        if input_datasets:
+            _params["input_datasets"] = {
+                name: (
+                    config.model_dump()
+                    if hasattr(config, "model_dump")
+                    else config.dict()
+                    if hasattr(config, "dict")
+                    else config
                 )
-            test_params = base_params or {}
+                for name, config in input_datasets.items()
+            }
+        test_params = _params
 
         base_systems_params: Dict[str, Any] = {}
         # Add additional systems if specified
@@ -1174,29 +1176,22 @@ def create_data_generation_plan(
         vols = getattr(job, "volumes", None)
         input_datasets = getattr(job, "input_datasets", None)
         base_params = getattr(job, "params", None)
-
+        _params = dict(base_params or {})
         if vols:
-            _params = dict(base_params or {})
             _params["__volumes"] = vols  # reserved key
             _params["volumes"] = vols  # Also pass volumes directly for container access
-            if input_datasets:
-                _params["input_datasets"] = {
-                    name: (
-                        config.model_dump()
-                        if hasattr(config, "model_dump")
-                        else config.dict()
-                        if hasattr(config, "dict")
-                        else config
-                    )
-                    for name, config in input_datasets.items()
-                }
-            generation_params = _params
-        else:
-            if input_datasets:
-                raise ValueError(
-                    f"Job config for {job.name} provided with input_datasets but without volumes; datasets must be passed in via mounted volumes."
+        if input_datasets:
+            _params["input_datasets"] = {
+                name: (
+                    config.model_dump()
+                    if hasattr(config, "model_dump")
+                    else config.dict()
+                    if hasattr(config, "dict")
+                    else config
                 )
-            generation_params = base_params or {}
+                for name, config in input_datasets.items()
+            }
+        generation_params = _params
 
         systems_params = {}
         # Get the target systems (if any)
