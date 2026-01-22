@@ -68,9 +68,7 @@ class SystemInput(BaseModel):
         description="The system type(s) accepted. Can be a single string (e.g., 'llm_api') or a list of strings (e.g., ['llm_api', 'vlm_api']) for containers that support multiple system types. Valid types: 'llm_api', 'rest_api', 'rag_api', 'image_generation_api', 'image_editing_api', 'vlm_api'.",
     )
     required: bool = Field(True, description="Whether this system input is required.")
-    description: Optional[str] = Field(
-        None, description="Description of the system's role in the test."
-    )
+    description: Optional[str] = Field(None, description="Description of the system's role in the test.")
 
 
 class InputParameter(BaseModel):
@@ -109,9 +107,7 @@ class EnvironmentVariable(BaseModel):
         True,
         description="Whether this environment variable is mandatory for execution.",
     )
-    description: Optional[str] = Field(
-        None, description="Explanation of what this variable is used for."
-    )
+    description: Optional[str] = Field(None, description="Explanation of what this variable is used for.")
 
 
 class DatasetFeature(BaseModel):
@@ -131,9 +127,7 @@ class DatasetFeature(BaseModel):
         "Common types: 'string', 'int64', 'int32', 'float64', 'float32', 'bool'. "
         "See: https://huggingface.co/docs/datasets/about_dataset_features",
     )
-    description: Optional[str] = Field(
-        None, description="Description of the feature - data type, purpose etc."
-    )
+    description: Optional[str] = Field(None, description="Description of the feature - data type, purpose etc.")
 
 
 class DatasetType(StrEnum):
@@ -162,17 +156,13 @@ class InputDataset(BaseModel):
         ...,
         description="The dataset name, e.g., 'evaluation_data', 'test_prompts'.",
     )
-    required: bool = Field(
-        True, description="Whether this dataset is mandatory for execution."
-    )
+    required: bool = Field(True, description="Whether this dataset is mandatory for execution.")
     type: Union[DatasetType, List[DatasetType]] = Field(
         ...,
         description="The dataset type(s): single type or list of accepted types. "
         "Examples: 'huggingface', ['pdf', 'txt'], or ['huggingface', 'pdf', 'txt'].",
     )
-    description: Optional[str] = Field(
-        None, description="Description of the dataset's role in the test."
-    )
+    description: Optional[str] = Field(None, description="Description of the dataset's role in the test.")
     features: Optional[list[DatasetFeature]] = Field(
         None,
         description="List of required features within a HuggingFace dataset.",
@@ -197,12 +187,8 @@ class OutputReports(BaseModel):
         ...,
         description="The name of the report ('detailed_report', 'summary_report', ...).",
     )
-    type: Literal["pdf", "html"] = Field(
-        ..., description="The report file format ('pdf' or 'html')."
-    )
-    description: Optional[str] = Field(
-        None, description="Short description of the report content."
-    )
+    type: Literal["pdf", "html"] = Field(..., description="The report file format ('pdf' or 'html').")
+    description: Optional[str] = Field(None, description="Short description of the report content.")
 
 
 # This is a slightly relaxed version of input dataset, if provided could be used for validation
@@ -213,12 +199,8 @@ class OutputDataset(BaseModel):
         ...,
         description="The name of this output dataset (e.g., 'augmented_rag_data')",
     )
-    type: DatasetType = Field(
-        ..., description="Type of dataset: huggingface, pdf, or txt"
-    )
-    description: Optional[str] = Field(
-        None, description="Description of the output dataset's purpose and contents"
-    )
+    type: DatasetType = Field(..., description="Type of dataset: huggingface, pdf, or txt")
+    description: Optional[str] = Field(None, description="Description of the output dataset's purpose and contents")
     features: Optional[list[DatasetFeature]] = Field(
         None,
         description="List of required features within a HuggingFace dataset",
@@ -434,9 +416,7 @@ class SystemsConfig(BaseModel):
 
     """
 
-    systems: Dict[str, SystemConfig] = Field(
-        ..., description="Dictionary of system definitions."
-    )
+    systems: Dict[str, SystemConfig] = Field(..., description="Dictionary of system definitions.")
 
 
 # ----------------------------------------------------------------------------
@@ -582,9 +562,7 @@ class TestDefinitionBase(BaseModel):
         None,
         description="Optional additional systems for the test (e.g., simulator_system, evaluator_system).",
     )
-    tags: Optional[List[str]] = Field(
-        None, description="Optional tags for filtering and reporting."
-    )
+    tags: Optional[List[str]] = Field(None, description="Optional tags for filtering and reporting.")
     params: Optional[Dict[str, Any]] = Field(
         None, description="Parameters to be passed to the test container's entrypoint."
     )
@@ -592,9 +570,7 @@ class TestDefinitionBase(BaseModel):
         None,
         description="Input dataset names mapped to dataset registry references. Values must be dataset names defined in the datasets registry config (--datasets-config).",
     )
-    volumes: Optional[Dict[str, Any]] = Field(
-        None, description="Optional input/output mounts."
-    )
+    volumes: Optional[Dict[str, Any]] = Field(None, description="Optional input/output mounts.")
     env_file: Optional[str] = Field(
         None,
         description="Path to .env file containing environment variables for this test's container execution (e.g., '.env', 'test.env').",
@@ -644,9 +620,7 @@ class SuiteConfig(BaseModel):
         None,
         description="A short summary of the test suite and what it aims to evaluate.",
     )
-    test_suite: List[TestDefinition] = Field(
-        ..., description="List of individual focused tests."
-    )
+    test_suite: List[TestDefinition] = Field(..., description="List of individual focused tests.")
 
 
 # ----------------------------------------------------------------------------
@@ -670,9 +644,7 @@ class ScoreCardFilter(BaseModel):
 class AssessmentRule(BaseModel):
     """Individual assessment outcome with condition."""
 
-    outcome: str = Field(
-        ..., description="Assessment outcome, e.g., 'PASS', 'FAIL', 'A', 'F'"
-    )
+    outcome: str = Field(..., description="Assessment outcome, e.g., 'PASS', 'FAIL', 'A', 'F'")
     condition: Literal[
         "equal_to",
         "greater_than",
@@ -683,12 +655,8 @@ class AssessmentRule(BaseModel):
         "any_false",
         "count_equals",
     ] = Field(..., description="Condition to evaluate against the metric value")
-    threshold: Optional[Union[int, float, bool]] = Field(
-        None, description="Threshold value for comparison conditions"
-    )
-    description: Optional[str] = Field(
-        None, description="Human-readable description for this assessment outcome"
-    )
+    threshold: Optional[Union[int, float, bool]] = Field(None, description="Threshold value for comparison conditions")
+    description: Optional[str] = Field(None, description="Human-readable description for this assessment outcome")
 
 
 class MetricExpression(BaseModel):
@@ -711,9 +679,7 @@ class ScoreCardIndicator(BaseModel):
         ...,
         description="A unique, human-readable ID (up to 32 characters) for this score card indicator. Can include lowercase letters (a–z), digits (0–9) and underscore (_).",
     )
-    name: Optional[str] = Field(
-        None, description="Human-readable name for this score card indicator"
-    )
+    name: Optional[str] = Field(None, description="Human-readable name for this score card indicator")
     apply_to: ScoreCardFilter = Field(
         ...,
         description="Filter criteria for which test results this indicator applies to",
@@ -733,14 +699,10 @@ class ScoreCardIndicator(BaseModel):
             "   Variable names in expression are mapped to metric paths via the 'values' dict."
         ),
     )
-    assessment: List[AssessmentRule] = Field(
-        ..., description="List of assessment rules to evaluate against the metric"
-    )
+    assessment: List[AssessmentRule] = Field(..., description="List of assessment rules to evaluate against the metric")
     display_reports: List[str] = Field(
         default_factory=list,
-        description=(
-            "List of report names to include from the test container manifest."
-        ),
+        description=("List of report names to include from the test container manifest."),
     )
 
 
@@ -752,9 +714,7 @@ class ScoreCardIndicator(BaseModel):
 class AuditAssessmentRule(BaseModel):
     """Assessment outcome for audit indicators."""
 
-    outcome: str = Field(
-        ..., description="Assessment outcome, e.g., 'A', 'B', 'C', 'PASS', 'FAIL'."
-    )
+    outcome: str = Field(..., description="Assessment outcome, e.g., 'A', 'B', 'C', 'PASS', 'FAIL'.")
     description: Optional[str] = Field(
         None,
         description="Human-readable description for this audit outcome",
@@ -807,9 +767,7 @@ class AuditResponse(BaseModel):
         None,
         description="Name of the system under test this response applies to. If omitted, applies globally.",
     )
-    selected_outcome: str = Field(
-        ..., description="Letter grade or label (A–E, PASS/FAIL, etc.)."
-    )
+    selected_outcome: str = Field(..., description="Letter grade or label (A–E, PASS/FAIL, etc.).")
     notes: Optional[str] = Field(None, description="Optional free text notes")
 
 
@@ -822,16 +780,10 @@ class AuditResponses(BaseModel):
 # ----------------------------------------------------------------------------
 class GenerationJobConfig(BaseModel):
     id: str = Field(..., description="Unique identifier for the generation job")
-    systems: Optional[Dict[str, str]] = Field(
-        None, description="Mapping of system alias to system identifier"
-    )
+    systems: Optional[Dict[str, str]] = Field(None, description="Mapping of system alias to system identifier")
     name: str = Field(..., description="Human-readable data generation job name")
-    image: str = Field(
-        ..., description="Container image to run the data generation job"
-    )
-    tags: Optional[List[str]] = Field(
-        None, description="Optional tags for filtering and reporting."
-    )
+    image: str = Field(..., description="Container image to run the data generation job")
+    tags: Optional[List[str]] = Field(None, description="Optional tags for filtering and reporting.")
     input_datasets: Optional[Dict[str, str]] = Field(
         None,
         description="Input dataset names mapped to dataset registry references. Values must be dataset names defined in the datasets registry config (--datasets-config).",
@@ -839,9 +791,7 @@ class GenerationJobConfig(BaseModel):
     params: Optional[Dict[str, Any]] = Field(
         None, description="Parameters to be passed to the test container's entrypoint."
     )
-    volumes: Optional[Dict[str, Any]] = Field(
-        None, description="Optional input/output mounts."
-    )
+    volumes: Optional[Dict[str, Any]] = Field(None, description="Optional input/output mounts.")
     env_file: Optional[str] = Field(
         None,
         description="Path to .env file containing environment variables for this test's container execution (e.g., '.env', 'test.env').",
@@ -856,6 +806,4 @@ class DataGenerationConfig(BaseModel):
     """Schema for the data generation configuration manifest."""
 
     job_name: str = Field(..., description="Name of the data generation job")
-    generation_jobs: List[GenerationJobConfig] = Field(
-        ..., description="List of generation jobs to execute"
-    )
+    generation_jobs: List[GenerationJobConfig] = Field(..., description="List of generation jobs to execute")
