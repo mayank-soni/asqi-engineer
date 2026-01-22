@@ -52,7 +52,9 @@ class TestHFDtypeLiteral:
                 missing_types.append(dtype)
 
         if missing_types:
-            pytest.fail(f"Common HuggingFace types missing from HFDtype Literal: {missing_types}")
+            pytest.fail(
+                f"Common HuggingFace types missing from HFDtype Literal: {missing_types}"
+            )
 
 
 class TestDatasetFeature:
@@ -60,7 +62,9 @@ class TestDatasetFeature:
 
     def test_create_with_string_dtype(self):
         """Test creating DatasetFeature with valid string dtype."""
-        feature = DatasetFeature(name="user_id", dtype="int64", description="Unique user identifier")
+        feature = DatasetFeature(
+            name="user_id", dtype="int64", description="Unique user identifier"
+        )
         assert feature.name == "user_id"
         assert feature.dtype == "int64"
         assert feature.description == "Unique user identifier"
@@ -105,7 +109,9 @@ class TestDatasetFeature:
         feature = DatasetFeature(name="test", dtype="string")
         assert feature.description is None
 
-        feature_with_desc = DatasetFeature(name="test", dtype="string", description="Test feature")
+        feature_with_desc = DatasetFeature(
+            name="test", dtype="string", description="Test feature"
+        )
         assert feature_with_desc.description == "Test feature"
 
     def test_default_optional(self):
@@ -206,7 +212,10 @@ class TestInputDatasetWithFeatures:
                 type="huggingface",
                 features=None,  # Missing features
             )
-        assert "Features must be defined when 'huggingface' is an accepted dataset type" in str(exc_info.value)
+        assert (
+            "Features must be defined when 'huggingface' is an accepted dataset type"
+            in str(exc_info.value)
+        )
 
     def test_input_dataset_with_invalid_feature_dtype(self):
         """Test that invalid feature dtypes are caught."""
@@ -259,7 +268,10 @@ class TestInputDatasetWithFeatures:
                 description="Flexible input - accepts multiple formats",
                 features=None,  # Features ARE required when huggingface is accepted
             )
-        assert "Features must be defined when 'huggingface' is an accepted dataset type" in str(exc_info.value)
+        assert (
+            "Features must be defined when 'huggingface' is an accepted dataset type"
+            in str(exc_info.value)
+        )
 
     def test_input_dataset_multiple_types_with_features(self):
         """Test that multi-type datasets can still have features defined."""
@@ -285,7 +297,10 @@ class TestInputDatasetWithFeatures:
                 type="huggingface",  # Single type
                 features=None,  # Should fail
             )
-        assert "Features must be defined when 'huggingface' is an accepted dataset type" in str(exc_info.value)
+        assert (
+            "Features must be defined when 'huggingface' is an accepted dataset type"
+            in str(exc_info.value)
+        )
 
 
 class TestDatasetFeatureDtypeExamples:
