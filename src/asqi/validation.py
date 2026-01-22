@@ -1,8 +1,10 @@
 import logging
+from functools import cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
+from datasets import Value
 from pydantic import BaseModel
 from rich.console import Console
 
@@ -16,12 +18,16 @@ from asqi.schemas import (
     DatasetsConfig,
     EnvironmentVariable,
     GenerationJobConfig,
+    HFDatasetDefinition,
+    HFDtype,
+    InputDataset,
     Manifest,
     ScoreCard,
     SuiteConfig,
     SystemsConfig,
     TestDefinition,
 )
+from asqi.datasets import load_hf_dataset_builder
 
 logger = logging.getLogger()
 
@@ -359,6 +365,16 @@ def validate_dataset_configs(
                         f"{item_type} '{item.name}': Dataset '{schema_dataset.name}' "
                         f"has type '{provided_type}' but container accepts: [{types_str}]"
                     )
+                # Check dataset features for huggingface datasets
+                # Input volume path existence validated earlier and error raised if not found
+                elif provided_type == "huggingface" and input_volume_path:
+                    errors.extend(
+                        validate_dataset_features(
+                            dataset_def,
+                            schema_dataset,
+                            input_volume_path,
+                        )
+                    )
 
     # Check for unknown dataset names
     schema_datasets = {d.name: d for d in manifest.input_datasets}
@@ -368,6 +384,62 @@ def validate_dataset_configs(
                 f"{item_type} '{item.name}': Unknown dataset '{provided_dataset_name}'. Valid datasets: {', '.join(schema_datasets.keys()) if schema_datasets else 'none'}"
             )
 
+    return errors
+
+
+@cache
+def map_hf_data_types() -> dict[str, list[str]]:
+    """Creates a mapping of HF data types to all equivalent types."""
+    dtype_mapping = {}
+    for dtype in HFDtype:
+        dtype_mapping[dtype] = [dtype]
+    dtype_mapping["float"].append("float32")
+    dtype_mapping["float32"].append("float")
+    dtype_mapping["double"].append("float64")
+    dtype_mapping["float64"].append("double")
+    return dtype_mapping
+
+
+def validate_dataset_features(
+    dataset_definition: HFDatasetDefinition,
+    dataset_schema: InputDataset,
+    prefix_path: Path | None = None,
+) -> list[str]:
+    """Validates that required features are found in HF dataset,
+    and that all features provided are of the right data types.
+
+    Args:
+        dataset_definition: HF dataset definition passed in dataset config file
+        dataset_schema: Schema for dataset defined in manifest
+        prefix_path: Optional path to prepend to relative data_files/data_dir paths in dataset_definition
+
+    Returns:
+        List of validation error messages
+
+    """
+    dtype_mapping = map_hf_data_types()
+    errors: list[str] = []
+    dataset_builder = load_hf_dataset_builder(dataset_definition, prefix_path)
+    provided_features = dataset_builder.info.features
+    for manifest_feature in dataset_schema.features:
+        mapped_feature = dataset_definition.mapping.get(manifest_feature.name)
+        provided_feature = provided_features.get(
+            mapped_feature if mapped_feature else manifest_feature.name
+        )
+        if manifest_feature.required and not provided_feature:
+            error = "Required feature {manifest_feature.name}"
+            if mapped_feature:
+                error += f", mapped to {mapped_feature},"
+            error += f" not found in dataset {dataset_schema.name}."
+            errors.append(error)
+        elif (not isinstance(provided_feature, Value)) or (
+            provided_feature.dtype not in dtype_mapping[manifest_feature.dtype]
+        ):
+            error = f"Feature {manifest_feature.name} is required to be of type {manifest_feature.dtype}. Provided feature {manifest_feature.name}"
+            if mapped_feature:
+                error += f", mapped from {mapped_feature},"
+            error += f" is of type {type(provided_feature)}."
+            errors.append(error)
     return errors
 
 
