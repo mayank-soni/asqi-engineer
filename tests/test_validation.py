@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from datasets import Features, Value
 from pydantic import ValidationError
 
 from asqi.config import ExecutionMode
@@ -14,9 +15,12 @@ from asqi.schemas import (
     AssessmentRule,
     AuditScoreCardIndicator,
     DataGenerationConfig,
+    DatasetLoaderParams,
     DatasetFeature,
     GenerationJobConfig,
     GenericSystemConfig,
+    HFDatasetDefinition,
+    InputDataset,
     InputParameter,
     LLMAPIConfig,
     LLMAPIParams,
@@ -39,6 +43,7 @@ from asqi.validation import (
     find_manifest_for_image,
     validate_data_generation_input,
     validate_data_generation_plan,
+    validate_dataset_features,
     validate_execution_inputs,
     validate_generated_datasets,
     validate_ids,
@@ -1209,6 +1214,71 @@ class TestValidationFunctions:
         image_availability = {"my-registry/mock_tester:latest": False}
         plan = create_test_execution_plan(suite, demo_systems, image_availability)
         assert plan == []
+
+    def test_validate_dataset_features(self, mocker):
+        mock_load_builder = mocker.patch("asqi.validation.load_hf_dataset_builder")
+
+        def mock_builder(features):
+            builder = mocker.Mock()
+            builder.info.features = Features(features)
+            return builder
+
+        dataset_definition = HFDatasetDefinition(
+            type="huggingface",
+            loader_params=DatasetLoaderParams(
+                builder_name="json", data_files="data.json"
+            ),
+            mapping={},
+        )
+        # Test required feature not found
+        dataset_schema = InputDataset(
+            name="eval_data",
+            type="huggingface",
+            features=[DatasetFeature(name="text", dtype="string", required=True)],
+        )
+        mock_load_builder.return_value = mock_builder({})
+        errors = validate_dataset_features(dataset_definition, dataset_schema)
+        assert errors == ["Required feature text not found in dataset eval_data."]
+
+        # Test required feature of wrong type
+        mock_load_builder.return_value = mock_builder({"text": Value("int64")})
+        errors = validate_dataset_features(dataset_definition, dataset_schema)
+        assert errors == [
+            "Feature text is required to be of type string. Provided feature text is of type int64."
+        ]
+
+        # Test optional feature not found
+        dataset_schema = InputDataset(
+            name="eval_data",
+            type="huggingface",
+            features=[DatasetFeature(name="optional", dtype="int64", required=False)],
+        )
+        errors = validate_dataset_features(dataset_definition, dataset_schema)
+        assert errors == []
+
+        # - Test optional feature of wrong type
+        mock_load_builder.return_value = mock_builder({"optional": Value("string")})
+        errors = validate_dataset_features(dataset_definition, dataset_schema)
+        assert errors == [
+            "Feature optional is required to be of type int64. Provided feature optional is of type string."
+        ]
+
+        # Test mapped required feature found
+        dataset_definition_mapped = HFDatasetDefinition(
+            type="huggingface",
+            loader_params=DatasetLoaderParams(
+                builder_name="json", data_files="data.json"
+            ),
+            mapping={"text": "content"},
+        )
+        dataset_schema = InputDataset(
+            name="eval_data",
+            type="huggingface",
+            features=[DatasetFeature(name="text", dtype="string", required=True)],
+        )
+        mock_load_builder.return_value = mock_builder({"content": Value("string")})
+        errors = validate_dataset_features(dataset_definition_mapped, dataset_schema)
+        assert errors == []
 
 
 class TestFindManifestForImage:
