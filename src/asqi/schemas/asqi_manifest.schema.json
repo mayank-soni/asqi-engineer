@@ -50,6 +50,12 @@
           "title": "Dtype",
           "type": "string"
         },
+        "required": {
+          "default": false,
+          "description": "Whether the field is mandatory",
+          "title": "Required",
+          "type": "boolean"
+        },
         "description": {
           "anyOf": [
             {
@@ -170,7 +176,7 @@
             }
           ],
           "default": null,
-          "description": "List of required features within a HuggingFace dataset.",
+          "description": "List of features within a HuggingFace dataset.",
           "title": "Features"
         }
       },
@@ -294,7 +300,7 @@
             }
           ],
           "default": null,
-          "description": "List of required features within a HuggingFace dataset",
+          "description": "List of features within a HuggingFace dataset",
           "title": "Features"
         }
       },
