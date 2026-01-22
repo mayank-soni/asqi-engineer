@@ -426,13 +426,17 @@ def validate_dataset_features(
         provided_feature = provided_features.get(
             mapped_feature if mapped_feature else manifest_feature.name
         )
+        # Check if required feature is not provided
         if manifest_feature.required and not provided_feature:
             error = f"Required feature {manifest_feature.name}"
             if mapped_feature:
                 error += f", mapped to {mapped_feature},"
             error += f" not found in dataset {dataset_schema.name}."
             errors.append(error)
-        elif not isinstance(provided_feature, Value):
+        # Check the data type of all provided features found in manifest (required or not)
+        if provided_feature is None:
+            continue
+        if not isinstance(provided_feature, Value):
             error = f"Feature {manifest_feature.name} is required to be of type datasets.Value. Provided feature {manifest_feature.name}"
             if mapped_feature:
                 error += f", mapped from {mapped_feature},"
