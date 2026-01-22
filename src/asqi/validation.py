@@ -319,14 +319,18 @@ def validate_dataset_configs(
     # Note: input_datasets should contain resolved DatasetDefinition objects at this point,
     # not string references (after resolve_dataset_references() has been called)
     item_datasets: Dict[str, DatasetDefinition] = item.input_datasets or {}  # type: ignore[assignment]
-    if item_datasets and (not item.volumes or item.volumes.get("input")) is None:
-        errors.append(
-            "Missing input volume. Input datasets must be provided via an input volume."
-        )
-        input_volume_path = None
-    # Volumes should already have been validated at this point using validate_volumes
+    if item_datasets:
+        if not item.volumes or item.volumes.get("input") is None:
+            errors.append(
+                "Missing input volume. Input datasets must be provided via an input volume."
+            )
+            input_volume_path = None
+        else:
+            # Volumes should already have been validated at this point using validate_volumes,
+            # so no need to re-check existence
+            input_volume_path = Path(item.volumes["input"]).expanduser().resolve()
     else:
-        input_volume_path = Path(item.volumes["input"]).expanduser().resolve()
+        input_volume_path = None
     item_type = "Test" if isinstance(item, TestDefinition) else "Job"
 
     # Check for required but missing datasets
