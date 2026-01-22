@@ -127,6 +127,7 @@ class DatasetFeature(BaseModel):
         "Common types: 'string', 'int64', 'int32', 'float64', 'float32', 'bool'. "
         "See: https://huggingface.co/docs/datasets/about_dataset_features",
     )
+    required: bool = Field(False, description="Whether the field is mandatory")
     description: Optional[str] = Field(None, description="Description of the feature - data type, purpose etc.")
 
 
