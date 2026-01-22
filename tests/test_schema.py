@@ -108,6 +108,14 @@ class TestDatasetFeature:
         feature_with_desc = DatasetFeature(name="test", dtype="string", description="Test feature")
         assert feature_with_desc.description == "Test feature"
 
+    def test_default_optional(self):
+        """Test that required is optional."""
+        feature = DatasetFeature(name="test", dtype="string")
+        assert feature.required is False
+
+        required_feature = DatasetFeature(name="test", dtype="string", required=True)
+        assert required_feature.required is True
+
     def test_all_common_dtypes(self):
         """Test all common HuggingFace dtypes are accepted."""
         common_dtypes = [
