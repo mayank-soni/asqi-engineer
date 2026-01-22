@@ -43,6 +43,7 @@ from asqi.validation import (
     find_manifest_for_image,
     validate_data_generation_input,
     validate_data_generation_plan,
+    validate_dataset_configs,
     validate_dataset_features,
     validate_execution_inputs,
     validate_generated_datasets,
@@ -1216,8 +1217,37 @@ class TestValidationFunctions:
         assert plan == []
 
     def test_validate_input_volume_for_dataset(self):
-        
-    
+        class DummyTest:
+            name = "test_with_datasets"
+            input_datasets = {
+                "eval_data": HFDatasetDefinition(
+                    type="huggingface",
+                    loader_params=DatasetLoaderParams(
+                        builder_name="json", data_files="data.json"
+                    ),
+                    mapping={},
+                )
+            }
+            volumes = {"output": "/output"}
+
+        manifest = Manifest(
+            name="test_manifest",
+            version="1.0",
+            input_datasets=[
+                InputDataset(
+                    name="eval_data",
+                    type="huggingface",
+                    features=[DatasetFeature(name="text", dtype="string")],
+                )
+            ],
+        )
+
+        errors = validate_dataset_configs(DummyTest(), manifest)
+        assert (
+            "Missing input volume. Input datasets must be provided via an input volume."
+            in errors
+        )
+
     def test_validate_dataset_features(self, mocker):
         mock_load_builder = mocker.patch("asqi.validation.load_hf_dataset_builder")
 
