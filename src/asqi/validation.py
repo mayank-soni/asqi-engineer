@@ -1,7 +1,7 @@
 import logging
 from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, get_args, List, Optional, Union
 
 import yaml
 from datasets import Value
@@ -395,7 +395,7 @@ def validate_dataset_configs(
 def map_hf_data_types() -> dict[str, list[str]]:
     """Creates a mapping of HF data types to all equivalent types."""
     dtype_mapping = {}
-    for dtype in HFDtype:
+    for dtype in get_args(HFDtype):
         dtype_mapping[dtype] = [dtype]
     dtype_mapping["float"].append("float32")
     dtype_mapping["float32"].append("float")
