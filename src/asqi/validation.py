@@ -427,7 +427,7 @@ def validate_dataset_features(
             mapped_feature if mapped_feature else manifest_feature.name
         )
         if manifest_feature.required and not provided_feature:
-            error = "Required feature {manifest_feature.name}"
+            error = f"Required feature {manifest_feature.name}"
             if mapped_feature:
                 error += f", mapped to {mapped_feature},"
             error += f" not found in dataset {dataset_schema.name}."
