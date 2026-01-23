@@ -59,7 +59,7 @@ def load_hf_iterable_dataset(
         streaming=True,
     )
     for k, v in dataset_config.mapping.items():
-        dataset = dataset.rename_column(k, v)
+        dataset = dataset.rename_column(v, k)
     return dataset
 
 
