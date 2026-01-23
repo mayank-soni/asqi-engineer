@@ -59,7 +59,7 @@ def load_hf_iterable_dataset(
         streaming=True,
     )
     for k, v in dataset_config.mapping.items():
-        dataset = dataset.rename_column(v, k)
+        dataset = dataset.rename_column(k, v)
     return dataset
 
 
@@ -96,7 +96,6 @@ def load_hf_dataset(
     mapping = {}
     for k, v in dataset_config.mapping.items():
         mapping[v] = k
-    mapping = dataset_config.mapping
     # Only local file loaders (json, csv, parquet, etc.) are used via
     # builder_name constrained by Literal type. revision provided for future
     # compatibility with HF Hub datasets but not required for local files.
