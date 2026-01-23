@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Union
 
-from datasets import Dataset, DatasetBuilder, load_dataset, load_dataset_builder
+from datasets import Dataset, IterableDataset, load_dataset
 
 from asqi.schemas import DatasetLoaderParams, HFDatasetDefinition
 
@@ -27,18 +27,18 @@ def resolve_dataset_loader_paths(
     return loader_params
 
 
-def load_hf_dataset_builder(
+def load_hf_iterable_dataset(
     dataset_config: HFDatasetDefinition, prefix_path: Path | None = None
-) -> DatasetBuilder:
-    """Load a HuggingFace dataset builder using the provided loader parameters.
-    Builder can be used to validate dataset features without loading the entire dataset.
+) -> IterableDataset:
+    """Load a HuggingFace dataset as an iterable dataset using the provided loader parameters.
+    Can be used to validate dataset schema without loading the entire dataset.
 
-    Args:
+    Ar
         dataset_config: Configuration for loading the HuggingFace dataset.
         prefix_path: Optional path to prepend to relative data_files/data_dir paths.
 
     Returns:
-        DatasetBuilder: Loaded HuggingFace dataset builder.
+        IterableDataset: Loaded HuggingFace iterable dataset.
 
     Security Note:
         This function uses local file loaders (json, csv, parquet, etc.) via
@@ -49,11 +49,13 @@ def load_hf_dataset_builder(
     loader_params = resolve_dataset_loader_paths(
         dataset_config.loader_params, prefix_path
     )
-    return load_dataset_builder(
+    return load_dataset(
         path=loader_params.builder_name,
         data_dir=loader_params.data_dir,
         data_files=loader_params.data_files,
         revision=loader_params.revision,
+        split="train",
+        streaming=True,
     )
 
 

@@ -1,14 +1,15 @@
 import logging
 from functools import cache
 from pathlib import Path
-from typing import Any, Dict, get_args, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, get_args
 
 import yaml
-from datasets import Value
+from datasets.features import Image, Value
 from pydantic import BaseModel
 from rich.console import Console
 
 from asqi.config import ExecutionMode, load_config_file
+from asqi.datasets import load_hf_dataset, load_hf_iterable_dataset
 from asqi.errors import DuplicateIDError, MissingIDFieldError
 from asqi.response_schemas import GeneratedDataset
 from asqi.schemas import (
@@ -18,6 +19,7 @@ from asqi.schemas import (
     DatasetsConfig,
     EnvironmentVariable,
     GenerationJobConfig,
+    HFComplexDtype,
     HFDatasetDefinition,
     HFDtype,
     InputDataset,
@@ -27,7 +29,6 @@ from asqi.schemas import (
     SystemsConfig,
     TestDefinition,
 )
-from asqi.datasets import load_hf_dataset_builder
 
 logger = logging.getLogger()
 
@@ -392,7 +393,7 @@ def validate_dataset_configs(
 
 
 @cache
-def map_hf_data_types() -> dict[str, list[str]]:
+def map_hf_data_types() -> tuple[dict[str, list[str]], dict[str, type]]:
     """Creates a mapping of HF data types to all equivalent types."""
     dtype_mapping = {}
     for dtype in get_args(HFDtype):
@@ -401,7 +402,10 @@ def map_hf_data_types() -> dict[str, list[str]]:
     dtype_mapping["float32"].append("float")
     dtype_mapping["double"].append("float64")
     dtype_mapping["float64"].append("double")
-    return dtype_mapping
+    complex_dtype_mapping = {
+        "Image": Image,
+    }
+    return dtype_mapping, complex_dtype_mapping
 
 
 def validate_dataset_features(
@@ -421,37 +425,54 @@ def validate_dataset_features(
         List of validation error messages
 
     """
-    dtype_mapping = map_hf_data_types()
+    dtype_mapping, complex_dtype_mapping = map_hf_data_types()
     errors: list[str] = []
-    dataset_builder = load_hf_dataset_builder(dataset_definition, prefix_path)
-    provided_features = dataset_builder.info.features
-    for manifest_feature in dataset_schema.features:
+    dataset = load_hf_iterable_dataset(dataset_definition, prefix_path)
+    provided_features = dataset.features
+    # In some cases, the iterable dataset loader is not able to detect the features
+    if not provided_features:
+        dataset = load_hf_dataset(dataset_definition, prefix_path)
+        provided_features = dataset.features
+    # Ignore type checking because dataset_schema.features cannot be None
+    # Since it has type huggingface
+    for manifest_feature in dataset_schema.features:  # type: ignore[attr-defined]
         mapped_feature = dataset_definition.mapping.get(manifest_feature.name)
         provided_feature = provided_features.get(
             mapped_feature if mapped_feature else manifest_feature.name
         )
         # Check if required feature is not provided
-        if manifest_feature.required and not provided_feature:
+        if manifest_feature.required and provided_feature is None:
             error = f"Required feature {manifest_feature.name}"
             if mapped_feature:
                 error += f", mapped to {mapped_feature},"
             error += f" not found in dataset {dataset_schema.name}."
             errors.append(error)
-        # Check the data type of all provided features found in manifest (required or not)
+        # Check the data type of all provided features which are also defined in manifest
+        # (whether required or not)
         if provided_feature is None:
             continue
-        if not isinstance(provided_feature, Value):
-            error = f"Feature {manifest_feature.name} is required to be of type datasets.Value. Provided feature {manifest_feature.name}"
-            if mapped_feature:
-                error += f", mapped from {mapped_feature},"
-            error += f" is of type {type(provided_feature)}."
-            errors.append(error)
-        elif provided_feature.dtype not in dtype_mapping[manifest_feature.dtype]:
-            error = f"Feature {manifest_feature.name} is required to be of type {manifest_feature.dtype}. Provided feature {manifest_feature.name}"
-            if mapped_feature:
-                error += f", mapped from {mapped_feature},"
-            error += f" is of type {provided_feature.dtype}."
-            errors.append(error)
+        if manifest_feature.dtype in get_args(HFDtype):
+            if not isinstance(provided_feature, Value):
+                error = f"Feature {manifest_feature.name} is required to be of type datasets.Value. Provided feature {manifest_feature.name}"
+                if mapped_feature:
+                    error += f", mapped from {mapped_feature},"
+                error += f" is of type {type(provided_feature)}."
+                errors.append(error)
+            elif provided_feature.dtype not in dtype_mapping[manifest_feature.dtype]:
+                error = f"Feature {manifest_feature.name} is required to be of type {manifest_feature.dtype}. Provided feature {manifest_feature.name}"
+                if mapped_feature:
+                    error += f", mapped from {mapped_feature},"
+                error += f" is of type {provided_feature.dtype}."
+                errors.append(error)
+        elif manifest_feature.dtype in get_args(HFComplexDtype):
+            if not isinstance(
+                provided_feature, complex_dtype_mapping[manifest_feature.dtype]
+            ):
+                error = f"Feature {manifest_feature.name} is required to be of type {manifest_feature.dtype}. Provided feature {manifest_feature.name}"
+                if mapped_feature:
+                    error += f", mapped from {mapped_feature},"
+                error += f" is of type {type(provided_feature)}."
+                errors.append(error)
     return errors
 
 

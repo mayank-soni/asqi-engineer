@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from datasets import Features, Value
+from datasets import Features, Image, Value
 from pydantic import ValidationError
 
 from asqi.config import ExecutionMode
@@ -15,8 +15,8 @@ from asqi.schemas import (
     AssessmentRule,
     AuditScoreCardIndicator,
     DataGenerationConfig,
-    DatasetLoaderParams,
     DatasetFeature,
+    DatasetLoaderParams,
     GenerationJobConfig,
     GenericSystemConfig,
     HFDatasetDefinition,
@@ -1249,12 +1249,14 @@ class TestValidationFunctions:
         )
 
     def test_validate_dataset_features(self, mocker):
-        mock_load_builder = mocker.patch("asqi.validation.load_hf_dataset_builder")
+        mock_load_iterable_dataset = mocker.patch(
+            "asqi.validation.load_hf_iterable_dataset"
+        )
 
-        def mock_builder(features):
-            builder = mocker.Mock()
-            builder.info.features = Features(features)
-            return builder
+        def mock_iterable_dataset(features):
+            iterable_dataset = mocker.Mock()
+            iterable_dataset.features = Features(features)
+            return iterable_dataset
 
         dataset_definition = HFDatasetDefinition(
             type="huggingface",
@@ -1269,19 +1271,21 @@ class TestValidationFunctions:
             type="huggingface",
             features=[DatasetFeature(name="text", dtype="string", required=True)],
         )
-        mock_load_builder.return_value = mock_builder({})
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset({})
         errors = validate_dataset_features(dataset_definition, dataset_schema)
         assert errors == ["Required feature text not found in dataset eval_data."]
 
         # Test required feature of wrong type
-        mock_load_builder.return_value = mock_builder({"text": Value("int64")})
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset(
+            {"text": Value("int64")}
+        )
         errors = validate_dataset_features(dataset_definition, dataset_schema)
         assert errors == [
             "Feature text is required to be of type string. Provided feature text is of type int64."
         ]
 
         # Test optional feature not found
-        mock_load_builder.return_value = mock_builder({})
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset({})
         dataset_schema = InputDataset(
             name="eval_data",
             type="huggingface",
@@ -1291,7 +1295,9 @@ class TestValidationFunctions:
         assert errors == []
 
         # Test optional feature of wrong type
-        mock_load_builder.return_value = mock_builder({"optional": Value("string")})
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset(
+            {"optional": Value("string")}
+        )
         errors = validate_dataset_features(dataset_definition, dataset_schema)
         assert errors == [
             "Feature optional is required to be of type int64. Provided feature optional is of type string."
@@ -1310,9 +1316,48 @@ class TestValidationFunctions:
             type="huggingface",
             features=[DatasetFeature(name="text", dtype="string", required=True)],
         )
-        mock_load_builder.return_value = mock_builder({"content": Value("string")})
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset(
+            {"content": Value("string")}
+        )
         errors = validate_dataset_features(dataset_definition_mapped, dataset_schema)
         assert errors == []
+
+        # Test images feature
+        dataset_definition_images = HFDatasetDefinition(
+            type="huggingface",
+            loader_params=DatasetLoaderParams(
+                builder_name="imagefolder", data_dir="data/"
+            ),
+            mapping={},
+        )
+        dataset_schema_images = InputDataset(
+            name="image_data",
+            type="huggingface",
+            features=[DatasetFeature(name="images", dtype="Image", required=True)],
+        )
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset(
+            {"images": Image()}
+        )
+        errors = validate_dataset_features(
+            dataset_definition_images, dataset_schema_images
+        )
+        assert errors == []
+
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset(
+            {"text": Image()}
+        )
+        errors = validate_dataset_features(dataset_definition_images, dataset_schema)
+        assert errors == [
+            "Feature text is required to be of type datasets.Value. Provided feature text is of type <class 'datasets.features.image.Image'>."
+        ]
+
+        mock_load_iterable_dataset.return_value = mock_iterable_dataset(
+            {"images": Value("int64")}
+        )
+        errors = validate_dataset_features(dataset_definition, dataset_schema_images)
+        assert errors == [
+            "Feature images is required to be of type Image. Provided feature images is of type <class 'datasets.features.features.Value'>."
+        ]
 
 
 class TestFindManifestForImage:

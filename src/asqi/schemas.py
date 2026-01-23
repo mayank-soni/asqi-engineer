@@ -51,6 +51,11 @@ HFDtype = Literal[
     "string_view",
 ]
 
+# See feature types available in: https://github.com/huggingface/datasets/blob/main/src/datasets/features/__init__.py
+# Will add support for remainder once tested.
+HFComplexDtype = Literal["Image"]
+
+
 # ----------------------------------------------------------------------------
 # Schemas for manifest.yaml (Embedded in Test Containers)
 # ----------------------------------------------------------------------------
@@ -125,7 +130,7 @@ class DatasetFeature(BaseModel):
         ...,
         description="The name of the feature.",
     )
-    dtype: HFDtype = Field(
+    dtype: HFDtype | HFComplexDtype = Field(
         ...,
         description="The data type of the feature. "
         "Common types: 'string', 'int64', 'int32', 'float64', 'float32', 'bool'. "
