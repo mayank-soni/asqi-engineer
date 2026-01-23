@@ -430,7 +430,7 @@ def validate_dataset_features(
     dataset = load_hf_iterable_dataset(dataset_definition, prefix_path)
     provided_features = dataset.features
     # In some cases, the iterable dataset loader is not able to detect the features
-    if not provided_features:
+    if provided_features is None:
         dataset = load_hf_dataset(dataset_definition, prefix_path)
         provided_features = dataset.features
     # Ignore type checking because dataset_schema.features cannot be None

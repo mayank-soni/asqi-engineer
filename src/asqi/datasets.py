@@ -9,6 +9,7 @@ from asqi.schemas import DatasetLoaderParams, HFDatasetDefinition
 def resolve_dataset_loader_paths(
     loader_params: DatasetLoaderParams, prefix_path: Path | None
 ) -> DatasetLoaderParams:
+    loader_params = loader_params.copy()
     if prefix_path:
         if loader_params.data_dir:
             loader_params.data_dir = (
@@ -49,7 +50,7 @@ def load_hf_iterable_dataset(
     loader_params = resolve_dataset_loader_paths(
         dataset_config.loader_params, prefix_path
     )
-    return load_dataset(
+    dataset = load_dataset(
         path=loader_params.builder_name,
         data_dir=loader_params.data_dir,
         data_files=loader_params.data_files,
@@ -57,6 +58,9 @@ def load_hf_iterable_dataset(
         split="train",
         streaming=True,
     )
+    for k, v in dataset_config.mapping.items():
+        dataset = dataset.rename_column(v, k)
+    return dataset
 
 
 def load_hf_dataset(
@@ -89,6 +93,9 @@ def load_hf_dataset(
     loader_params = resolve_dataset_loader_paths(
         dataset_config.loader_params, input_mount_path
     )
+    mapping = {}
+    for k, v in dataset_config.mapping.items():
+        mapping[v] = k
     mapping = dataset_config.mapping
     # Only local file loaders (json, csv, parquet, etc.) are used via
     # builder_name constrained by Literal type. revision provided for future

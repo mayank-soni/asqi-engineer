@@ -1254,9 +1254,9 @@ class TestValidationFunctions:
         )
 
         def mock_iterable_dataset(features):
-            iterable_dataset = mocker.Mock()
-            iterable_dataset.features = Features(features)
-            return iterable_dataset
+            dataset = mocker.Mock()
+            dataset.features = Features(features)
+            return dataset
 
         dataset_definition = HFDatasetDefinition(
             type="huggingface",
